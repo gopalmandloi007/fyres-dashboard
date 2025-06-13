@@ -32,18 +32,16 @@ def get_prev_trading_close_fyers(fyers, symbol, upto_date=None):
 
 def show():
     st.header("FYERS Holdings / Positions / Funds")
-
     fyers = get_fyers_client()
 
     # --- Holdings ---
     holdings = fyers.holdings()
-    if holdings['code'] == 200:
+    if holdings.get('code') == 200:
         holdings_data = holdings.get('holdings', [])
         overall_data = holdings.get('overall', {})
         if holdings_data:
             holdings_table = []
             prev_close_cache = {}
-
             for idx, holding in enumerate(sorted(holdings_data, key=lambda x: x.get('symbol', '')), start=1):
                 symbol = holding.get('symbol', '')
                 ltp = holding.get('ltp', 0)
@@ -83,13 +81,11 @@ def show():
             st.subheader("Holdings")
             st.dataframe(df)
 
-            # Overall Summary
             st.subheader("Overall Summary")
             st.write({
                 "Total Investment": overall_data.get('total_investment', 0),
                 "Total Current Value": overall_data.get('total_current_value', 0),
                 "Overall P&L": overall_data.get('total_pl', 0),
-                # Today's P&L sum is already in table
             })
         else:
             st.info("No holdings data available.")
@@ -98,7 +94,7 @@ def show():
 
     # --- Positions ---
     positions = fyers.positions()
-    if positions['code'] == 200:
+    if positions.get('code') == 200:
         positions_data = positions.get('netPositions', [])
         if positions_data:
             df = pd.DataFrame(positions_data)
@@ -111,7 +107,7 @@ def show():
 
     # --- Funds ---
     funds = fyers.funds()
-    if funds['code'] == 200:
+    if funds.get('code') == 200:
         funds_data = funds.get('fund_limit', [])
         if funds_data:
             st.subheader("Available Funds")
