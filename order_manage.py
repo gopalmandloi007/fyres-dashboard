@@ -5,7 +5,7 @@ def show():
     st.header("Cancel/Modify Orders (FYERS)")
     fyers = get_fyers_client()
     orders = fyers.orderbook()
-    if orders['code'] == 200:
+    if orders.get('code') == 200:
         orders_data = orders.get('orderBook', [])
         pending_orders = [o for o in orders_data if int(o.get('status', 0)) in [1, 6] and int(o.get("remainingQuantity", 0)) > 0]
         if pending_orders:
