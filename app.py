@@ -6,15 +6,14 @@ st.title("FYERS Integrate Dashboard")
 
 PAGES = {
     "Holdings": "holdings",
-    "Positions": "holdings",  # positions are shown in holdings.py (or split if you want)
-    "Order Book": "orders",
-    "Place Order": "place_order",
+    "Orders": "orders",
     "Order Manage": "order_manage",
-    # Add other modules here as needed
+    "Place Order": "place_order",
 }
 
 page = st.sidebar.radio("Go to", list(PAGES.keys()))
 modulename = PAGES[page]
+
 try:
     module = importlib.import_module(modulename)
     if hasattr(module, "show"):
