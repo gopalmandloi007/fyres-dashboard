@@ -6,7 +6,7 @@ def show():
     st.header("Order Book (FYERS)")
     fyers = get_fyers_client()
     orders = fyers.orderbook()
-    if orders['code'] == 200:
+    if orders.get('code') == 200:
         orders_data = orders.get('orderBook', [])
         if orders_data:
             df = pd.DataFrame(orders_data)
