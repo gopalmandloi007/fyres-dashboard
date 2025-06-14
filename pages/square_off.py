@@ -101,27 +101,26 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
             # Store the pending order in session state for confirmation
             st.session_state[form_state_key] = order_data
 
-    # If order is pending confirmation, show a modal dialog
+    # Fallback confirmation (no modal) for compatibility
     if st.session_state[form_state_key]:
-        with st.modal("Confirm Sell Order"):
-            st.write("**Please confirm your order before final placement:**")
-            st.json(st.session_state[form_state_key])
-            col1, col2 = st.columns(2)
-            confirm = col1.button("✅ Confirm Order", key=f"{unique_id}_confirm")
-            cancel = col2.button("❌ Cancel", key=f"{unique_id}_cancel")
-            if confirm:
-                with st.spinner("Placing order..."):
-                    resp = place_single_order(st.session_state[form_state_key])
-                if resp.get("s") == "ok":
-                    st.success(f"Order Placed! Ref: {resp.get('id', '')}")
-                else:
-                    st.error(f"Order Failed: {resp.get('message', '')}")
-                st.session_state["active_sqoff_idx"] = None
-                st.session_state[form_state_key] = None
-                st.rerun()
-            if cancel:
-                st.session_state[form_state_key] = None
-                st.rerun()
+        st.warning("Please confirm your order before final placement:")
+        st.json(st.session_state[form_state_key])
+        col1, col2 = st.columns(2)
+        confirm = col1.button("✅ Confirm Order", key=f"{unique_id}_confirm")
+        cancel = col2.button("❌ Cancel", key=f"{unique_id}_cancel")
+        if confirm:
+            with st.spinner("Placing order..."):
+                resp = place_single_order(st.session_state[form_state_key])
+            if resp.get("s") == "ok":
+                st.success(f"Order Placed! Ref: {resp.get('id', '')}")
+            else:
+                st.error(f"Order Failed: {resp.get('message', '')}")
+            st.session_state["active_sqoff_idx"] = None
+            st.session_state[form_state_key] = None
+            st.rerun()
+        if cancel:
+            st.session_state[form_state_key] = None
+            st.rerun()
 
 def show():
     st.title("⚡ Fyers CNC Square Off (Definedge Style)")
