@@ -9,8 +9,8 @@ def show():
         df = pd.DataFrame(resp.get("holdings", []))
         if not df.empty:
             st.dataframe(df)
-            st.write(f"Total P&L: {resp.get('total_pl')}, P&L%: {resp.get('pnl_perc')}%")
+            st.markdown(f"**Total P&L:** {resp.get('total_pl')} | **P&L %:** {resp.get('pnl_perc')}%")
         else:
             st.info("No holdings found.")
     else:
-        st.error("Could not fetch holdings.")
+        st.error(f"Could not fetch holdings: {resp.get('message','')}")
