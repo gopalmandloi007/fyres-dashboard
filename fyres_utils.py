@@ -45,3 +45,28 @@ def fetch_trades():
 def fetch_orders():
     fyers = get_fyers()
     return fyers.orderbook()
+
+# Place GTT (Single or OCO: just change the data structure you pass)
+def place_gtt_order(order_data):
+    fyers = get_fyers()
+    return fyers.place_gtt_order(data=order_data)
+
+# Modify GTT Order
+def modify_gtt_order(order_id, order_info):
+    fyers = get_fyers()
+    data = {
+        "id": order_id,
+        "orderInfo": order_info
+    }
+    return fyers.modify_gtt_order(data=data)
+
+# Cancel GTT Order
+def cancel_gtt_order(order_id):
+    fyers = get_fyers()
+    data = {"id": order_id}
+    return fyers.cancel_gtt_order(data=data)
+
+# Fetch GTT Order Book (all GTT orders)
+def fetch_gtt_orders():
+    fyers = get_fyers()
+    return fyers.gtt_orderbook()
