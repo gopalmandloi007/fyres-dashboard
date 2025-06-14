@@ -1,15 +1,29 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import streamlit as st
 import pandas as pd
-from fyres_utils import fyres_get
+from fyres_utils import fetch_orders
 
 def show():
-    st.header("Fyres Orders")
-    resp = fyres_get("/api/v3/orders")
+    st.header("Fyers Orders")
+    resp = fetch_orders()
     if resp.get("s") == "ok":
-        df = pd.DataFrame(resp.get("orders", []))
-        if not df.empty:
-            st.dataframe(df)
+        orders = resp.get("orderBook", []) or resp.get("orders", [])
+        if orders:
+            df = pd.DataFrame(orders)
+            # Optional: Column order for better display
+            display_cols = [
+                "symbol", "qty", "type", "side", "productType", "limitPrice", "stopPrice",
+                "status", "orderDateTime", "filledQty", "disclosedQty", "orderTag", "id"
+            ]
+            display_cols = [col for col in display_cols if col in df.columns]
+            st.dataframe(df[display_cols] if display_cols else df)
         else:
             st.info("No orders found.")
     else:
         st.error(f"Could not fetch orders: {resp.get('message','')}")
+
+if __name__ == "__main__":
+    show()
