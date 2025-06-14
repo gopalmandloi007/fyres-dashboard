@@ -9,7 +9,7 @@ PAGES = {
     "Orders": "orders",
     "Trades": "trades",
     "GTT": "gtt",
-    "Charts": "chart"
+    "Charts": "chart",
     "Place Order": "place_order",
     "GTT Order": "place_gtt",
     "Modify/Cancel Order": "modify_cancel_order",
