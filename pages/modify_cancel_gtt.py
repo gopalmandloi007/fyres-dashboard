@@ -1,37 +1,50 @@
 import streamlit as st
-from fyres_utils import fyres_patch, fyres_delete
+from fyres_utils import modify_gtt_order, cancel_gtt_order
 
 def show():
     st.header("Modify/Cancel GTT Order")
-    gtt_id = st.text_input("GTT Order ID to Modify/Cancel")
-    action = st.radio("Action", ["Modify", "Cancel"])
 
-    if action == "Modify":
-        leg1_price = st.number_input("Leg 1 - New Price", value=0.0)
-        leg1_trigger = st.number_input("Leg 1 - New Trigger Price", value=0.0)
-        leg1_qty = st.number_input("Leg 1 - New Qty", min_value=1, step=1)
-        use_leg2 = st.checkbox("Modify Leg 2 (OCO)?")
-        order_info = {"leg1": {"price": float(leg1_price), "triggerPrice": float(leg1_trigger), "qty": int(leg1_qty)}}
-        if use_leg2:
-            leg2_price = st.number_input("Leg 2 - New Price", value=0.0)
-            leg2_trigger = st.number_input("Leg 2 - New Trigger Price", value=0.0)
-            leg2_qty = st.number_input("Leg 2 - New Qty", min_value=1, step=1)
-            order_info["leg2"] = {"price": float(leg2_price), "triggerPrice": float(leg2_trigger), "qty": int(leg2_qty)}
+    order_id = st.text_input("Order ID to modify/cancel")
 
+    with st.expander("Modify GTT Order"):
+        price1 = st.number_input("New Leg 1 Price", value=100.0)
+        trigger_price1 = st.number_input("New Leg 1 Trigger Price", value=100.0)
+        qty1 = st.number_input("New Leg 1 Qty", value=1, min_value=1, step=1)
+        oco = st.checkbox("OCO Modify?", value=False)
+        price2 = trigger_price2 = qty2 = None
+        if oco:
+            price2 = st.number_input("New Leg 2 Price", value=90.0)
+            trigger_price2 = st.number_input("New Leg 2 Trigger Price", value=90.0)
+            qty2 = st.number_input("New Leg 2 Qty", value=1, min_value=1, step=1)
         if st.button("Modify GTT Order"):
-            data = {"id": gtt_id, "orderInfo": order_info}
-            resp = fyres_patch("/api/v3/gtt/orders/sync", data)
-            st.write(resp)
+            order_info = {
+                "leg1": {
+                    "price": price1,
+                    "triggerPrice": trigger_price1,
+                    "qty": int(qty1)
+                }
+            }
+            if oco:
+                order_info["leg2"] = {
+                    "price": price2,
+                    "triggerPrice": trigger_price2,
+                    "qty": int(qty2)
+                }
+            resp = modify_gtt_order(order_id, order_info)
+            st.write("API Response:", resp)
             if resp.get("s") == "ok":
-                st.success("GTT order modified!")
+                st.success(f"Order modified! ID: {resp.get('id')}")
             else:
-                st.error(f"Modify failed: {resp.get('message')}")
-    else:
+                st.error(f"Error: {resp.get('message')}")
+
+    with st.expander("Cancel GTT Order"):
         if st.button("Cancel GTT Order"):
-            data = {"id": gtt_id}
-            resp = fyres_delete("/api/v3/gtt/orders/sync", data)
-            st.write(resp)
+            resp = cancel_gtt_order(order_id)
+            st.write("API Response:", resp)
             if resp.get("s") == "ok":
-                st.success("GTT order cancelled!")
+                st.success(f"Order cancelled! ID: {resp.get('id')}")
             else:
-                st.error(f"Cancel failed: {resp.get('message')}")
+                st.error(f"Error: {resp.get('message')}")
+
+if __name__ == "__main__":
+    show()
