@@ -7,7 +7,6 @@ def show():
     symbol = st.text_input("Symbol", "NSE:IDEA-EQ")
     qty = st.number_input("Qty", value=1, step=1, min_value=1)
     
-    # Tuple ka pehla value display hoga, dusra actual value hoga
     order_type_tuple = st.selectbox("Order Type", [("Market", 2), ("Limit", 1)], format_func=lambda x: x[0])
     order_type = order_type_tuple[1]
     
@@ -23,6 +22,9 @@ def show():
     order_tag = st.text_input("Order Tag", "")
 
     if st.button("Place Order"):
+        # Always send at least 1 character for orderTag (Fyers v3 requirement)
+        safe_order_tag = order_tag.strip() if order_tag.strip() else "tag1"
+
         order_data = {
             "symbol": symbol,
             "qty": int(qty),
@@ -34,9 +36,8 @@ def show():
             "validity": validity,
             "disclosedQty": int(disclosed_qty),
             "offlineOrder": offline_order,
-            "orderTag": order_tag or ""
+            "orderTag": safe_order_tag
         }
-        # Clean up: Remove 0 prices for Market order (SDK handles, but cleaner)
         if order_type == 2:  # Market
             order_data["limitPrice"] = 0
             order_data["stopPrice"] = 0
