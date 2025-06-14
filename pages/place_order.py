@@ -61,7 +61,7 @@ def show():
             order_data["orderTag"] = order_tag
 
         st.write("Review Order:", order_data)
-        resp = fyres_post("/api/v2/orders", order_data)
+        resp = fyres_post("/api/v3/orders", order_data)
         st.write("API Raw Response:", resp)
         if resp.get("code") in [1101, 200] or resp.get("s") == "ok":
             st.success(f"Order Placed! Ref: {resp.get('id', '')}")
