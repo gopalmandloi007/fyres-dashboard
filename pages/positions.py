@@ -12,4 +12,4 @@ def show():
         else:
             st.info("No positions found.")
     else:
-        st.error("Could not fetch positions.")
+        st.error(f"Could not fetch positions: {resp.get('message','')}")
