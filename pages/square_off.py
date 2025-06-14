@@ -21,7 +21,7 @@ def get_alphanumeric(text, default="OrderTag1"):
 def fyers_sell_form(row, symbol, qty, unique_id):
     st.markdown("---")
     with st.form(f"sell_form_{unique_id}"):
-        # Step 1: Full/Partial
+        # 1. Quantity: Full/Partial radio, then qty input if Partial
         qty_option = st.radio(
             "Quantity to Sell",
             ["Full", "Partial"],
@@ -40,7 +40,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
         else:
             sell_qty = int(qty)
 
-        # Step 2: Market/Limit
+        # 2. Order Type: Market/Limit radio, then price input if Limit
         order_type_tuple = st.radio(
             "Order Type",
             [("Market", 2), ("Limit", 1)],
@@ -49,8 +49,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
         )
         order_type = order_type_tuple[1]
 
-        # Step 3: Limit Price (only for Limit)
-        limit_price = 0.0
+        # Only show limit price input for Limit order
         if order_type == 1:
             default_price = float(row.get("ltp") or row.get("avg_price") or row.get("buy_price") or 0.0)
             limit_price = st.number_input(
@@ -59,8 +58,9 @@ def fyers_sell_form(row, symbol, qty, unique_id):
                 value=round(default_price, 2),
                 key=f"price_{unique_id}"
             )
+        else:
+            limit_price = 0.0  # Market order: no price
 
-        # Step 4: Validity etc.
         validity = st.selectbox(
             "Order Validity",
             ["DAY", "IOC"],
