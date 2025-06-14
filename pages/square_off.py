@@ -1,6 +1,6 @@
 import streamlit as st
 import re
-from fyres_utils import fetch_holdings, fetch_positions, place_single_order
+from fyres_utils import fetch_holdings, place_single_order
 
 def get_alphanumeric(text, default="tag1"):
     cleaned = re.sub(r'[^A-Za-z0-9]', '', text)
@@ -17,6 +17,8 @@ def sell_form(stock, idx):
             "Order Type", [("Market", 2), ("Limit", 1)], format_func=lambda x: x[0], key=f"ordertype_{unique_id}"
         )
         order_type = order_type_tuple[1]
+        # Side is always Sell for square off
+        side = -1
         product_type = st.selectbox("Product Type", ["CNC", "INTRADAY", "CO", "BO"], index=0, key=f"ptype_{unique_id}")
         limit_price = st.number_input(
             "Limit Price", value=float(stock.get("ltp", 0.0)), min_value=0.0, key=f"lprice_{unique_id}"
@@ -29,14 +31,13 @@ def sell_form(stock, idx):
         offline_order = st.checkbox("Offline Order", value=False, key=f"offline_{unique_id}")
         order_tag_raw = st.text_input("Order Tag", value=f"sell{stock['symbol'].replace('-','').replace(':','')}", key=f"tag_{unique_id}")
         order_tag = get_alphanumeric(order_tag_raw, default="tag1")
-
         submitted = st.form_submit_button("Place Order")
         if submitted:
             order_data = {
                 "symbol": symbol,
                 "qty": int(qty),
                 "type": order_type,
-                "side": -1,
+                "side": side,
                 "productType": product_type,
                 "limitPrice": float(limit_price) if order_type == 1 else 0,
                 "stopPrice": float(stop_price),
@@ -48,7 +49,6 @@ def sell_form(stock, idx):
             if order_type == 2:  # Market
                 order_data["limitPrice"] = 0
                 order_data["stopPrice"] = 0
-
             st.write("Order Review:", order_data)
             try:
                 resp = place_single_order(order_data)
@@ -59,9 +59,9 @@ def sell_form(stock, idx):
                     st.error(f"Order Failed: {resp.get('message', '')}")
             except Exception as e:
                 st.error(f"Exception: {e}")
-            # Only reset after submit, so form closes and table refreshes
+            # After successful submit, close form and refresh table
             st.session_state["show_form_idx"] = None
-            st.experimental_rerun()
+            st.rerun()
 
 def show():
     st.header("Square Off Holdings (Fyers v3 SDK style)")
@@ -89,8 +89,8 @@ def show():
         columns[3].write(avg_price)
         if columns[4].button("Sell", key=f"sell_btn_{idx}"):
             st.session_state["show_form_idx"] = idx
-            st.experimental_rerun()
-        # Show the order form for the selected row only
+            st.rerun()
+        # Show the order form for selected row only
         if show_form_idx == idx:
             sell_form(stock, idx)
 
