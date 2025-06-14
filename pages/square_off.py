@@ -1,19 +1,23 @@
 import streamlit as st
-from fyres_utils import fetch_holdings, place_single_order
 import re
+from fyres_utils import fetch_holdings, place_single_order
 
 def get_alphanumeric(text, default="tag1"):
     cleaned = re.sub(r'[^A-Za-z0-9]', '', text)
     return cleaned if cleaned else default
 
-def squareoff_form(item, qty, symbol, idx):
-    unique_id = f"{symbol}_{idx}"
-    with st.form(f"squareoff_form_{unique_id}"):
+def squareoff_form(item, qty, symbol, idx, active_form_idx):
+    unique_id = f"squareoff_{idx}"
+    if active_form_idx != idx:
+        return  # Only show form for active row
+
+    with st.form(key=f"{unique_id}_form"):
+        # 1. Full/Partial selection
         qty_option = st.radio(
             "Quantity to Square Off",
             ["Full", "Partial"],
             horizontal=True,
-            key=f"qtyopt_{unique_id}"
+            key=f"{unique_id}_qtyopt"
         )
         if qty_option == "Partial":
             squareoff_qty = st.number_input(
@@ -21,34 +25,35 @@ def squareoff_form(item, qty, symbol, idx):
                 min_value=1,
                 max_value=int(qty),
                 value=1,
-                key=f"squareoffqty_{unique_id}"
+                key=f"{unique_id}_squareoffqty"
             )
         else:
             squareoff_qty = int(qty)
 
+        # 2. Market/Limit selection
         order_type = st.radio(
             "Order Type",
             ["Market Order", "Limit Order"],
             horizontal=True,
-            key=f"pricetype_{unique_id}"
+            key=f"{unique_id}_ordertype"
         )
         if order_type == "Limit Order":
             default_price = float(item.get("ltp") or item.get("avg_price") or item.get("buy_price") or 0)
             squareoff_price = st.number_input(
-                "Limit Price (₹)", min_value=0.01, value=round(default_price, 2), key=f"price_{unique_id}"
+                "Limit Price (₹)", min_value=0.01, value=round(default_price, 2), key=f"{unique_id}_price"
             )
             fyers_order_type = 1
         else:
             squareoff_price = 0.0
             fyers_order_type = 2
 
-        validity = st.selectbox("Order Validity", ["DAY", "IOC"], index=0, key=f"validity_{unique_id}")
-        remarks = st.text_input("Order Tag (optional)", key=f"remarks_{unique_id}")
+        validity = st.selectbox("Order Validity", ["DAY", "IOC"], index=0, key=f"{unique_id}_validity")
+        remarks = st.text_input("Order Tag (optional)", key=f"{unique_id}_remarks")
 
-        disclose = st.checkbox("Disclose Partial Quantity?", key=f"disclose_{unique_id}")
+        disclose = st.checkbox("Disclose Partial Quantity?", key=f"{unique_id}_disclose")
         if disclose:
             disclosed_quantity = st.number_input(
-                "Disclosed Quantity", min_value=1, max_value=int(squareoff_qty), value=1, key=f"discloseqty_{unique_id}"
+                "Disclosed Quantity", min_value=1, max_value=int(squareoff_qty), value=1, key=f"{unique_id}_discloseqty"
             )
         else:
             disclosed_quantity = 0
@@ -75,7 +80,8 @@ def squareoff_form(item, qty, symbol, idx):
                 st.success(f"Order Placed! Ref: {resp.get('id', '')}")
             else:
                 st.error(f"Order Failed: {resp.get('message', '')}")
-            st.session_state["show_sqoff"] = None
+            # Reset form index after placing order
+            st.session_state["active_sqoff_idx"] = None
             st.rerun()
 
 def show():
@@ -91,7 +97,9 @@ def show():
     columns = st.columns([2, 1, 1, 1, 1])
     for i, label in enumerate(["Symbol", "Qty", "LTP", "Avg Price", "Square Off"]):
         columns[i].markdown(f"**{label}**")
-    show_idx = st.session_state.get("show_sqoff", None)
+
+    # Per-row form index logic
+    active_form_idx = st.session_state.get("active_sqoff_idx", None)
 
     for idx, h in enumerate(holdings):
         symbol = h.get("symbol", "")
@@ -104,10 +112,9 @@ def show():
         columns[2].write(ltp)
         columns[3].write(avg_price)
         if columns[4].button("Square Off", key=f"sqoff_btn_{idx}"):
-            st.session_state["show_sqoff"] = idx
+            st.session_state["active_sqoff_idx"] = idx
             st.rerun()
-        if show_idx == idx:
-            squareoff_form(h, qty, symbol, idx)
+        squareoff_form(h, qty, symbol, idx, active_form_idx)
 
 if __name__ == "__main__":
     show()
