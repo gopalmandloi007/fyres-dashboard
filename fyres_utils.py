@@ -76,3 +76,40 @@ def fyres_delete(endpoint, data):
     if endpoint == "/api/v3/orders/sync":
         return fyers.cancel_order(data=data)
     return {"s": "error", "message": f"Unknown endpoint {endpoint}"}
+
+def squareoff_positions(ids=None):
+    """
+    ids: list of position ids to square off, or None to square off all
+    """
+    fyers = get_fyers()
+    data = {}
+    if ids:
+        data["id"] = ids
+    # API name is assumed, replace with actual if different
+    return fyers.exit_positions(data=data)
+
+def sell_holding(symbol, qty, order_type, limit_price=None):
+    """
+    symbol: string (e.g. NSE:SBIN-EQ)
+    qty: int
+    order_type: 2 for Market, 1 for Limit
+    limit_price: required if order_type==1
+    """
+    fyers = get_fyers()
+    order_data = {
+        "symbol": symbol,
+        "qty": int(qty),
+        "type": order_type,
+        "side": -1,  # Sell
+        "productType": "CNC",  # Usually for holdings
+        "validity": "DAY",
+        "disclosedQty": 0,
+        "offlineOrder": False,
+        "orderTag": "hold-exit"
+    }
+    if order_type == 1:  # Limit
+        order_data["limitPrice"] = float(limit_price)
+    else:
+        order_data["limitPrice"] = 0
+    order_data["stopPrice"] = 0
+    return fyers.place_order(data=order_data)
