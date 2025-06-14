@@ -35,8 +35,8 @@ def show():
         if order_tag:
             data["orderTag"] = order_tag
         resp = fyres_post("/api/v3/orders", data)
-        st.write(resp)
+        st.write("API Raw Response:", resp)
         if resp.get("s") == "ok":
             st.success(f"Order placed! Ref: {resp.get('id')}")
         else:
-            st.error(f"Order failed: {resp.get('message')}")
+            st.error(f"Order failed: {resp.get('message') or resp.get('raw') or resp}")
