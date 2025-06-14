@@ -10,6 +10,10 @@ PAGES = {
     "Trades": "trades",
     "GTT": "gtt",
     "Charts": "chart"
+    "Place Order": "place_order",
+    "GTT Order": "place_gtt",
+    "Modify/Cancel Order": "modify_cancel_order",
+    "Modify/Cancel GTT": "modify_cancel_gtt",
 }
 
 st.sidebar.title("Fyres Dashboard")
