@@ -5,89 +5,101 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import streamlit as st
 import pandas as pd
 import time
-
 from fyres_utils import (
     fetch_positions, squareoff_positions,
     fetch_holdings, sell_holding, fetch_orders
 )
 
 def show():
-    st.header("Square Off: Positions & Holdings")
+    st.header("Square Off: Positions & Holdings (Fyers Row-wise Action)")
 
     tab1, tab2 = st.tabs(["Positions", "Holdings"])
 
-    # ---- POSITIONS TAB ----
+    # --- POSITIONS TAB ---
     with tab1:
-        st.subheader("Square Off Positions")
+        st.subheader("Square Off Positions (Row-wise)")
         resp = fetch_positions()
         if resp.get("s") == "ok":
             positions = resp.get("netPositions", []) or resp.get("positions", [])
             if positions:
                 df = pd.DataFrame(positions)
-                id_list = [str(x) for x in df.get("id", pd.Series([])).tolist()]
-                selected_ids = st.multiselect("Select Position IDs to Square Off", id_list)
-                all_selected = st.checkbox("Square Off ALL Positions", value=(len(selected_ids) == 0))
-                if st.button("Square Off Positions"):
-                    ids = None if all_selected else selected_ids
-                    resp2 = squareoff_positions(ids)
-                    st.write("API Response:", resp2)
-                    if resp2.get("s") == "ok":
-                        st.success(resp2.get("message", "Positions squared off!"))
-                    else:
-                        st.error(resp2.get("message", "Failed to square off."))
-                st.dataframe(df)
+                st.write("**Open Positions:**")
+                for idx, row in df.iterrows():
+                    pos_id = str(row.get("id", f"pos_{idx}"))
+                    with st.expander(f"{row.get('symbol', '')} | Qty: {row.get('netQty', '')} | P&L: {row.get('pl', '')}"):
+                        st.write(row)
+                        if st.button("Square Off", key=f"pos_squareoff_btn_{pos_id}"):
+                            st.session_state[f"show_pos_mod_{pos_id}"] = True
+                        if st.session_state.get(f"show_pos_mod_{pos_id}", False):
+                            st.markdown("**Modify Square Off (You can just confirm below):**")
+                            st.write(f"Position ID: {pos_id}")
+                            # Most brokers just need ID to squareoff, but you can add qty etc. if your API supports
+                            if st.button("Confirm & Place Square Off Order", key=f"place_pos_sq_{pos_id}"):
+                                resp2 = squareoff_positions([pos_id])
+                                st.write("API Response:", resp2)
+                                if resp2.get("s", "") == "ok":
+                                    st.success("Position Squared Off!")
+                                    st.session_state[f"show_pos_mod_{pos_id}"] = False
+                                else:
+                                    st.error(resp2.get("message", "Failed to square off."))
+                            if st.button("Cancel", key=f"cancel_pos_sq_{pos_id}"):
+                                st.session_state[f"show_pos_mod_{pos_id}"] = False
             else:
                 st.info("No open positions.")
         else:
             st.error("Could not fetch positions.")
 
-    # ---- HOLDINGS TAB ----
+    # --- HOLDINGS TAB ---
     with tab2:
-        st.subheader("Sell Holdings (Square Off)")
+        st.subheader("Sell Holdings (Row-wise)")
         resp = fetch_holdings()
         if resp.get("s") == "ok":
             holdings = resp.get("holdings", [])
             if holdings:
                 df = pd.DataFrame(holdings)
-                symbol_list = [str(x) for x in df.get("symbol", pd.Series([])).tolist()]
-                selected_symbols = st.multiselect("Select Holdings to Sell", symbol_list)
-                for symbol in selected_symbols:
-                    sel_row = df[df["symbol"] == symbol]
-                    if sel_row.empty:
-                        continue
-                    row = sel_row.iloc[0]
-                    st.markdown(f"**{row['symbol']}** | Qty held: {row['quantity']}")
-                    qty_to_sell = st.number_input(
-                        f"Qty to Sell for {row['symbol']}",
-                        min_value=1,
-                        max_value=int(row['quantity']),
-                        value=int(row['quantity']),
-                        key=f"qty_{row['symbol']}"
-                    )
-                    order_type = st.radio(
-                        f"Order Type for {row['symbol']}",
-                        [("Market", 2), ("Limit", 1)],
-                        format_func=lambda x: x[0],
-                        key=f"type_{row['symbol']}"
-                    )
-                    limit_price = None
-                    if order_type[1] == 1:
-                        limit_price = st.number_input(
-                            f"Limit Price for {row['symbol']}",
-                            value=float(row.get("ltp", 0)),
-                            key=f"lp_{row['symbol']}"
-                        )
-                    if st.button(f"Sell {qty_to_sell} of {row['symbol']}", key=f"sell_{row['symbol']}_{order_type[1]}"):
-                        resp2 = sell_holding(row['symbol'], qty_to_sell, order_type[1], limit_price)
-                        st.write("Order Sell Response:", resp2)
-                        time.sleep(2)
-                        orders = fetch_orders()
-                        st.write("Order Book Snapshot:", orders)
-                        if resp2.get("s") == "ok":
-                            st.success(f"Sell Order Placed for {row['symbol']}")
-                        else:
-                            st.error(resp2.get("message", "Sell failed"))
-                st.dataframe(df)
+                st.write("**Your Holdings:**")
+                for idx, row in df.iterrows():
+                    symbol = row.get("symbol", f"sym_{idx}")
+                    with st.expander(f"{row.get('symbol', '')} | Qty: {row.get('quantity', '')} | P&L: {row.get('pl', '')}"):
+                        st.write(row)
+                        if st.button("Sell", key=f"hold_sell_btn_{symbol}"):
+                            st.session_state[f"show_hold_mod_{symbol}"] = True
+                        if st.session_state.get(f"show_hold_mod_{symbol}", False):
+                            st.markdown("**Sell Order Details:**")
+                            qty_to_sell = st.number_input(
+                                "Quantity to Sell",
+                                min_value=1,
+                                max_value=int(row.get("quantity", 1)),
+                                value=int(row.get("quantity", 1)),
+                                key=f"qty_{symbol}"
+                            )
+                            order_type = st.radio(
+                                "Order Type",
+                                [("Market", 2), ("Limit", 1)],
+                                format_func=lambda x: x[0],
+                                horizontal=True,
+                                key=f"type_{symbol}"
+                            )
+                            limit_price = None
+                            if order_type[1] == 1:
+                                limit_price = st.number_input(
+                                    "Limit Price",
+                                    value=float(row.get("ltp", 0)),
+                                    key=f"lp_{symbol}"
+                                )
+                            if st.button("Place Sell Order", key=f"place_hold_sell_{symbol}"):
+                                resp2 = sell_holding(symbol, qty_to_sell, order_type[1], limit_price)
+                                st.write("Order Sell Response:", resp2)
+                                time.sleep(2)
+                                orders = fetch_orders()
+                                st.write("Order Book Snapshot:", orders)
+                                if resp2.get("s", "") == "ok":
+                                    st.success("Sell Order Placed!")
+                                    st.session_state[f"show_hold_mod_{symbol}"] = False
+                                else:
+                                    st.error(resp2.get("message", "Sell failed"))
+                            if st.button("Cancel", key=f"cancel_hold_sell_{symbol}"):
+                                st.session_state[f"show_hold_mod_{symbol}"] = False
             else:
                 st.info("No holdings found.")
         else:
