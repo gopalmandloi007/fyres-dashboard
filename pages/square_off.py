@@ -6,14 +6,17 @@ def get_alphanumeric(text, default="tag1"):
     cleaned = re.sub(r'[^A-Za-z0-9]', '', text)
     return cleaned if cleaned else default
 
-def squareoff_form(item, qty, symbol, idx, active_form_idx):
+def squareoff_form(item, idx):
     unique_id = f"squareoff_{idx}"
-    if active_form_idx != idx:
-        return
-
     form_state_key = f"{unique_id}_order_state"
+
     if form_state_key not in st.session_state:
         st.session_state[form_state_key] = None
+
+    qty = int(item.get("quantity", 0))
+    symbol = item.get("symbol", "")
+    ltp = float(item.get("ltp", 0))
+    avg_price = float(item.get("avg_price", 0))
 
     with st.form(key=f"{unique_id}_form", clear_on_submit=True):
         qty_option = st.radio(
@@ -26,12 +29,12 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
             squareoff_qty = st.number_input(
                 "Enter quantity to square off",
                 min_value=1,
-                max_value=int(qty),
+                max_value=qty,
                 value=1,
                 key=f"{unique_id}_squareoffqty"
             )
         else:
-            squareoff_qty = int(qty)
+            squareoff_qty = qty
 
         order_type = st.radio(
             "Order Type",
@@ -40,13 +43,11 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
             key=f"{unique_id}_ordertype"
         )
         if order_type == "Limit Order":
-            default_price = float(
-                item.get("ltp") or item.get("avg_price") or item.get("buy_price") or 0
-            )
+            default_price = ltp or avg_price or 0
             squareoff_price = st.number_input(
                 "Limit Price (₹)",
                 min_value=0.01,
-                value=round(default_price, 2) if default_price > 0 else 0.01,
+                value=round(float(default_price), 2) if default_price > 0 else 0.01,
                 key=f"{unique_id}_price"
             )
             fyers_order_type = 1
@@ -78,8 +79,6 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
             disclosed_quantity = 0
 
         submitted = st.form_submit_button("🟢 Place Sell Order")
-
-        # Prepare the order_data in advance for confirmation
         order_data = {
             "symbol": symbol,
             "qty": int(squareoff_qty),
@@ -93,16 +92,15 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
             "offlineOrder": False,
             "orderTag": get_alphanumeric(remarks, default=f"Sell{symbol.replace('-','').replace(':','')}")
         }
-
         if submitted:
             if squareoff_qty > qty:
                 st.error("Cannot square off more than available quantity!")
                 return
-            # Store the pending order in session state for confirmation
             st.session_state[form_state_key] = order_data
+            st.session_state["pending_sqoff_idx"] = idx
 
-    # Fallback confirmation (no modal) for compatibility
-    if st.session_state[form_state_key]:
+    # Confirmation block
+    if st.session_state.get("pending_sqoff_idx") == idx and st.session_state[form_state_key]:
         st.warning("Please confirm your order before final placement:")
         st.json(st.session_state[form_state_key])
         col1, col2 = st.columns(2)
@@ -117,9 +115,11 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
                 st.error(f"Order Failed: {resp.get('message', '')}")
             st.session_state["active_sqoff_idx"] = None
             st.session_state[form_state_key] = None
+            st.session_state["pending_sqoff_idx"] = None
             st.rerun()
         if cancel:
             st.session_state[form_state_key] = None
+            st.session_state["pending_sqoff_idx"] = None
             st.rerun()
 
 def show():
@@ -137,7 +137,6 @@ def show():
         columns[i].markdown(f"**{label}**")
 
     active_form_idx = st.session_state.get("active_sqoff_idx", None)
-
     for idx, h in enumerate(holdings):
         symbol = h.get("symbol", "")
         qty = int(h.get("quantity", 0))
@@ -150,8 +149,10 @@ def show():
         columns[3].write(avg_price)
         if columns[4].button("Square Off", key=f"sqoff_btn_{idx}"):
             st.session_state["active_sqoff_idx"] = idx
+            st.session_state["pending_sqoff_idx"] = None
             st.rerun()
-        squareoff_form(h, qty, symbol, idx, active_form_idx)
+        if active_form_idx == idx:
+            squareoff_form(h, idx)
 
 if __name__ == "__main__":
     show()
