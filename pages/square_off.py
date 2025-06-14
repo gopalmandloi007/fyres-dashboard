@@ -19,7 +19,7 @@ def show():
             positions = resp.get("netPositions", []) or resp.get("positions", [])
             if positions:
                 df = pd.DataFrame(positions)
-                id_list = df["id"].astype(str).tolist() if "id" in df.columns else []
+                id_list = [str(x) for x in df["id"].tolist()] if "id" in df.columns else []
                 selected_ids = st.multiselect("Select Position IDs to Square Off", id_list)
                 all_selected = st.checkbox("Square Off ALL Positions", value=(len(selected_ids)==0))
                 if st.button("Square Off Positions"):
@@ -43,41 +43,47 @@ def show():
             holdings = resp.get("holdings", [])
             if holdings:
                 df = pd.DataFrame(holdings)
-                symbol_list = df["symbol"].astype(str).tolist() if "symbol" in df.columns else []
+                symbol_list = [str(x) for x in df["symbol"].tolist()] if "symbol" in df.columns else []
                 selected_symbols = st.multiselect("Select Holdings to Sell", symbol_list)
-                for symbol in selected_symbols:
-                    row = df[df["symbol"] == symbol].iloc[0]
-                    st.markdown(f"**{row['symbol']}** | Qty held: {row['quantity']}")
-                    qty_to_sell = st.number_input(
-                        f"Qty to Sell for {row['symbol']}",
-                        min_value=1,
-                        max_value=int(row['quantity']),
-                        value=int(row['quantity']),
-                        key=f"qty_{row['symbol']}"
-                    )
-                    order_type = st.selectbox(
-                        f"Order Type for {row['symbol']}",
-                        [("Market", 2), ("Limit", 1)],
-                        format_func=lambda x: x[0],
-                        key=f"type_{row['symbol']}"
-                    )
-                    limit_price = None
-                    if order_type[1] == 1:
-                        limit_price = st.number_input(
-                            f"Limit Price for {row['symbol']}",
-                            value=float(row.get("ltp", 0)),
-                            key=f"lp_{row['symbol']}"
+                if selected_symbols:
+                    for symbol in selected_symbols:
+                        sel_row = df[df["symbol"] == symbol]
+                        if sel_row.empty:
+                            continue
+                        row = sel_row.iloc[0]
+                        st.markdown(f"**{row['symbol']}** | Qty held: {row['quantity']}")
+                        qty_to_sell = st.number_input(
+                            f"Qty to Sell for {row['symbol']}",
+                            min_value=1,
+                            max_value=int(row['quantity']),
+                            value=int(row['quantity']),
+                            key=f"qty_{row['symbol']}"
                         )
-                    if st.button(f"Sell {qty_to_sell} of {row['symbol']}", key=f"sell_{row['symbol']}"):
-                        resp2 = sell_holding(row['symbol'], qty_to_sell, order_type[1], limit_price)
-                        st.write("Order Sell Response:", resp2)
-                        time.sleep(2)
-                        orders = fetch_orders()
-                        st.write("Order Book Snapshot:", orders)
-                        if resp2.get("s") == "ok":
-                            st.success(f"Sell Order Placed for {row['symbol']}")
-                        else:
-                            st.error(resp2.get("message", "Sell failed"))
+                        order_type = st.selectbox(
+                            f"Order Type for {row['symbol']}",
+                            [("Market", 2), ("Limit", 1)],
+                            format_func=lambda x: x[0],
+                            key=f"type_{row['symbol']}"
+                        )
+                        limit_price = None
+                        if order_type[1] == 1:
+                            limit_price = st.number_input(
+                                f"Limit Price for {row['symbol']}",
+                                value=float(row.get("ltp", 0)),
+                                key=f"lp_{row['symbol']}"
+                            )
+                        if st.button(f"Sell {qty_to_sell} of {row['symbol']}", key=f"sell_{row['symbol']}"):
+                            resp2 = sell_holding(row['symbol'], qty_to_sell, order_type[1], limit_price)
+                            st.write("Order Sell Response:", resp2)
+                            time.sleep(2)
+                            orders = fetch_orders()
+                            st.write("Order Book Snapshot:", orders)
+                            if resp2.get("s") == "ok":
+                                st.success(f"Sell Order Placed for {row['symbol']}")
+                            else:
+                                st.error(resp2.get("message", "Sell failed"))
+                else:
+                    st.info("Select holdings to sell from the dropdown above.")
                 st.dataframe(df)
             else:
                 st.info("No holdings found.")
