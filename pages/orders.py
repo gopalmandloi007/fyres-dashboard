@@ -13,7 +13,6 @@ def show():
         orders = resp.get("orderBook", []) or resp.get("orders", [])
         if orders:
             df = pd.DataFrame(orders)
-            # Optional: display only important columns
             display_cols = [
                 "symbol", "qty", "type", "side", "productType", "limitPrice", "stopPrice",
                 "status", "orderDateTime", "filledQty", "disclosedQty", "orderTag", "id"
