@@ -52,27 +52,32 @@ def show():
                             continue
                         row = sel_row.iloc[0]
                         st.markdown(f"**{row['symbol']}** | Qty held: {row['quantity']}")
+                        qty_key = f"qty_{row['symbol']}"
+                        order_type_key = f"type_{row['symbol']}"
+                        limit_price_key = f"lp_{row['symbol']}"
+                        sell_btn_key = f"sell_{row['symbol']}_{st.session_state.get(order_type_key, 2)}"
+
                         qty_to_sell = st.number_input(
                             f"Qty to Sell for {row['symbol']}",
                             min_value=1,
                             max_value=int(row['quantity']),
                             value=int(row['quantity']),
-                            key=f"qty_{row['symbol']}"
+                            key=qty_key
                         )
                         order_type = st.selectbox(
                             f"Order Type for {row['symbol']}",
                             [("Market", 2), ("Limit", 1)],
                             format_func=lambda x: x[0],
-                            key=f"type_{row['symbol']}"
+                            key=order_type_key
                         )
                         limit_price = None
                         if order_type[1] == 1:
                             limit_price = st.number_input(
                                 f"Limit Price for {row['symbol']}",
                                 value=float(row.get("ltp", 0)),
-                                key=f"lp_{row['symbol']}"
+                                key=limit_price_key
                             )
-                        if st.button(f"Sell {qty_to_sell} of {row['symbol']}", key=f"sell_{row['symbol']}"):
+                        if st.button(f"Sell {qty_to_sell} of {row['symbol']}", key=sell_btn_key):
                             resp2 = sell_holding(row['symbol'], qty_to_sell, order_type[1], limit_price)
                             st.write("Order Sell Response:", resp2)
                             time.sleep(2)
