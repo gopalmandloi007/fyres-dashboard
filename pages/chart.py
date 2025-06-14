@@ -31,4 +31,4 @@ def show():
             else:
                 st.warning("No candle data.")
         else:
-            st.error("Failed to get candles.")
+            st.error(f"Failed to get candles: {resp.get('message','')}")
