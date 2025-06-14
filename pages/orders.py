@@ -1,3 +1,5 @@
+from fyres_utils import debug_secrets
+debug_secrets()
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
