@@ -21,44 +21,48 @@ def get_alphanumeric(text, default="OrderTag1"):
 def fyers_sell_form(row, symbol, qty, unique_id):
     st.markdown("---")
     with st.form(f"sell_form_{unique_id}"):
-        # 1. Quantity: Full/Partial radio, then qty input if Partial
-        qty_option = st.radio(
-            "Quantity to Sell",
-            ["Full", "Partial"],
-            horizontal=True,
-            key=f"qtyopt_{unique_id}"
-        )
-
-        if qty_option == "Partial":
-            sell_qty = st.number_input(
-                "Enter quantity to sell",
-                min_value=1,
-                max_value=int(qty),
-                value=1,
-                key=f"sellqty_{unique_id}"
+        # Step 1: Partial/Full
+        qty_col1, qty_col2 = st.columns([1, 2])
+        with qty_col1:
+            qty_option = st.radio(
+                "Quantity to Sell",
+                ["Full", "Partial"],
+                horizontal=True,
+                key=f"qtyopt_{unique_id}"
             )
-        else:
-            sell_qty = int(qty)
+        with qty_col2:
+            if qty_option == "Partial":
+                sell_qty = st.number_input(
+                    "Enter quantity to sell",
+                    min_value=1,
+                    max_value=int(qty),
+                    value=1,
+                    key=f"sellqty_{unique_id}"
+                )
+            else:
+                sell_qty = int(qty)
 
-        # 2. Order Type: Market/Limit radio, then price input if Limit
-        order_type_tuple = st.radio(
-            "Order Type",
-            [("Market", 2), ("Limit", 1)],
-            horizontal=True,
-            key=f"ordertype_{unique_id}"
-        )
-        order_type = order_type_tuple[1]
-
-        if order_type == 1:  # Limit order
-            default_price = float(row.get("ltp") or row.get("avg_price") or row.get("buy_price") or 0.0)
-            limit_price = st.number_input(
-                "Limit Price (₹)",
-                min_value=0.01,
-                value=round(default_price, 2),
-                key=f"price_{unique_id}"
+        # Step 2: Market/Limit
+        type_col1, type_col2 = st.columns([1, 2])
+        with type_col1:
+            order_type_tuple = st.radio(
+                "Order Type",
+                [("Market", 2), ("Limit", 1)],
+                horizontal=True,
+                key=f"ordertype_{unique_id}"
             )
-        else:
-            limit_price = 0.0  # Market order: no price
+            order_type = order_type_tuple[1]
+        with type_col2:
+            if order_type == 1:
+                default_price = float(row.get("ltp") or row.get("avg_price") or row.get("buy_price") or 0.0)
+                limit_price = st.number_input(
+                    "Limit Price (₹)",
+                    min_value=0.01,
+                    value=round(default_price, 2),
+                    key=f"price_{unique_id}"
+                )
+            else:
+                limit_price = 0.0
 
         validity = st.selectbox(
             "Order Validity",
