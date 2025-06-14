@@ -5,7 +5,7 @@ def show():
     st.header("Place Normal Order")
     symbol = st.text_input("Symbol", "NSE:SBIN-EQ")
     qty = st.number_input("Quantity", min_value=1, step=1)
-    side = st.selectbox("Side", [("Buy", 1), ("Sell", -1)), format_func=lambda x: x[0])[1]
+    side = st.selectbox("Side", [("Buy", 1), ("Sell", -1)], format_func=lambda x: x[0])[1]
     order_type = st.selectbox("Order Type", [("Limit", 1), ("Market", 2), ("Stop (SL-M)", 3), ("Stoplimit (SL-L)", 4)], format_func=lambda x:x[0])[1]
     product_type = st.selectbox("Product Type", ["CNC", "INTRADAY", "MARGIN", "CO", "BO", "MTF"])
     limit_price = st.number_input("Limit Price", value=0.0)
