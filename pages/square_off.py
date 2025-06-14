@@ -95,6 +95,7 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
                 "offlineOrder": False,
                 "orderTag": get_alphanumeric(remarks, default=f"Sell{symbol.replace('-','').replace(':','')}")
             }
+            st.write("Order Data Being Sent:", order_data)
             with st.spinner("Placing order..."):
                 resp = place_single_order(order_data)
             if resp.get("s") == "ok":
@@ -103,7 +104,7 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
                 st.error(f"Order Failed: {resp.get('message', '')}")
             # Reset form index after placing order
             st.session_state["active_sqoff_idx"] = None
-            st.experimental_rerun()
+            st.rerun()
 
 def show():
     st.title("⚡ Fyers CNC Square Off (Definedge Style)")
@@ -133,7 +134,7 @@ def show():
         columns[3].write(avg_price)
         if columns[4].button("Square Off", key=f"sqoff_btn_{idx}"):
             st.session_state["active_sqoff_idx"] = idx
-            st.experimental_rerun()
+            st.rerun()
         squareoff_form(h, qty, symbol, idx, active_form_idx)
 
 if __name__ == "__main__":
