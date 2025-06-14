@@ -3,17 +3,19 @@ import re
 from fyres_utils import fetch_holdings, place_single_order
 
 def get_alphanumeric(text, default="tag1"):
-    # Remove non-alphanumeric characters, fallback to default if empty
     cleaned = re.sub(r'[^A-Za-z0-9]', '', text)
     return cleaned if cleaned else default
 
 def squareoff_form(item, qty, symbol, idx, active_form_idx):
     unique_id = f"squareoff_{idx}"
     if active_form_idx != idx:
-        return  # Show form only for active row
+        return
+
+    form_state_key = f"{unique_id}_order_state"
+    if form_state_key not in st.session_state:
+        st.session_state[form_state_key] = None
 
     with st.form(key=f"{unique_id}_form", clear_on_submit=True):
-        # Full/Partial selection
         qty_option = st.radio(
             "Quantity to Square Off",
             ["Full", "Partial"],
@@ -31,7 +33,6 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
         else:
             squareoff_qty = int(qty)
 
-        # Market/Limit selection
         order_type = st.radio(
             "Order Type",
             ["Market Order", "Limit Order"],
@@ -39,7 +40,6 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
             key=f"{unique_id}_ordertype"
         )
         if order_type == "Limit Order":
-            # Improved price fallback logic
             default_price = float(
                 item.get("ltp") or item.get("avg_price") or item.get("buy_price") or 0
             )
@@ -78,33 +78,50 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
             disclosed_quantity = 0
 
         submitted = st.form_submit_button("🟢 Place Sell Order")
+
+        # Prepare the order_data in advance for confirmation
+        order_data = {
+            "symbol": symbol,
+            "qty": int(squareoff_qty),
+            "type": fyers_order_type,
+            "side": -1,
+            "productType": "CNC",
+            "limitPrice": float(squareoff_price) if fyers_order_type == 1 else 0,
+            "stopPrice": 0,
+            "validity": validity,
+            "disclosedQty": int(disclosed_quantity),
+            "offlineOrder": False,
+            "orderTag": get_alphanumeric(remarks, default=f"Sell{symbol.replace('-','').replace(':','')}")
+        }
+
         if submitted:
             if squareoff_qty > qty:
                 st.error("Cannot square off more than available quantity!")
                 return
-            order_data = {
-                "symbol": symbol,
-                "qty": int(squareoff_qty),
-                "type": fyers_order_type,
-                "side": -1,  # Sell
-                "productType": "CNC",
-                "limitPrice": float(squareoff_price) if fyers_order_type == 1 else 0,
-                "stopPrice": 0,
-                "validity": validity,
-                "disclosedQty": int(disclosed_quantity),
-                "offlineOrder": False,
-                "orderTag": get_alphanumeric(remarks, default=f"Sell{symbol.replace('-','').replace(':','')}")
-            }
-            st.write("Order Data Being Sent:", order_data)
-            with st.spinner("Placing order..."):
-                resp = place_single_order(order_data)
-            if resp.get("s") == "ok":
-                st.success(f"Order Placed! Ref: {resp.get('id', '')}")
-            else:
-                st.error(f"Order Failed: {resp.get('message', '')}")
-            # Reset form index after placing order
-            st.session_state["active_sqoff_idx"] = None
-            st.rerun()
+            # Store the pending order in session state for confirmation
+            st.session_state[form_state_key] = order_data
+
+    # If order is pending confirmation, show a modal dialog
+    if st.session_state[form_state_key]:
+        with st.modal("Confirm Sell Order"):
+            st.write("**Please confirm your order before final placement:**")
+            st.json(st.session_state[form_state_key])
+            col1, col2 = st.columns(2)
+            confirm = col1.button("✅ Confirm Order", key=f"{unique_id}_confirm")
+            cancel = col2.button("❌ Cancel", key=f"{unique_id}_cancel")
+            if confirm:
+                with st.spinner("Placing order..."):
+                    resp = place_single_order(st.session_state[form_state_key])
+                if resp.get("s") == "ok":
+                    st.success(f"Order Placed! Ref: {resp.get('id', '')}")
+                else:
+                    st.error(f"Order Failed: {resp.get('message', '')}")
+                st.session_state["active_sqoff_idx"] = None
+                st.session_state[form_state_key] = None
+                st.rerun()
+            if cancel:
+                st.session_state[form_state_key] = None
+                st.rerun()
 
 def show():
     st.title("⚡ Fyers CNC Square Off (Definedge Style)")
