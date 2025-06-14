@@ -10,10 +10,9 @@ PAGES = {
     "Trades": "trades",
     "GTT": "gtt",
     "Charts": "chart"
-    # Add more as needed
 }
 
-st.title("Fyres Dashboard")
+st.sidebar.title("Fyres Dashboard")
 page = st.sidebar.radio("Go to", list(PAGES.keys()))
 modulename = PAGES[page]
 module = importlib.import_module(f"pages.{modulename}")
