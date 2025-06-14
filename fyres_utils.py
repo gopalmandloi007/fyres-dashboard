@@ -34,3 +34,10 @@ def fetch_orders():
 def fetch_positions():
     fyers = get_fyers()
     return fyers.positions()
+def fetch_positions():
+    fyers = get_fyers()
+    return fyers.positions()
+
+def fetch_trades():
+    fyers = get_fyers()
+    return fyers.tradebook()    
