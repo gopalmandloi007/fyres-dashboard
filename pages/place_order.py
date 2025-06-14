@@ -3,6 +3,7 @@ from fyres_utils import place_single_order
 
 def show():
     st.header("Place Single Order (Fyers v3 SDK)")
+
     symbol = st.text_input("Symbol", "NSE:IDEA-EQ")
     qty = st.number_input("Qty", value=1, step=1)
     order_type = st.selectbox("Order Type", [("Market", 2), ("Limit", 1)], format_func=lambda x: x[0])[1]
