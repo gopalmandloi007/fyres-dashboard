@@ -1,15 +1,25 @@
 import streamlit as st
 import pandas as pd
-from fyres_utils import fyres_get, fyres_post, fyres_patch, fyres_delete
+from fyres_utils import fetch_gtt_orders
 
 def show():
-    st.header("Fyres GTT Orders")
-    resp = fyres_get("/api/v3/gtt/orders")
+    st.header("Fyers GTT Order Book")
+    resp = fetch_gtt_orders()
     if resp.get("s") == "ok":
-        df = pd.DataFrame(resp.get("orderBook", []))
-        if not df.empty:
-            st.dataframe(df)
+        orders = resp.get("orderBook", [])
+        if orders:
+            df = pd.DataFrame(orders)
+            # You can customize columns below as per your needs
+            display_cols = [
+                "id", "symbol", "product_type", "qty", "price_limit", "price_trigger",
+                "qty2", "price2_limit", "price2_trigger", "ord_status", "report_type", "create_time"
+            ]
+            display_cols = [col for col in display_cols if col in df.columns]
+            st.dataframe(df[display_cols] if display_cols else df)
         else:
             st.info("No GTT orders found.")
     else:
         st.error(f"Could not fetch GTT orders: {resp.get('message','')}")
+
+if __name__ == "__main__":
+    show()
