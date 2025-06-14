@@ -4,7 +4,6 @@ import re
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 )
-
 import streamlit as st
 import pandas as pd
 
@@ -20,15 +19,14 @@ def get_alphanumeric(text, default="OrderTag1"):
 
 def fyers_sell_form(row, symbol, qty, unique_id):
     st.markdown("---")
-    # All widgets inside the form below, nothing happens until submit
     with st.form(f"sell_form_{unique_id}"):
+        # 1. Quantity radio, then qty input if Partial
         qty_option = st.radio(
             "Quantity to Sell",
             ["Full", "Partial"],
             horizontal=True,
             key=f"qtyopt_{unique_id}"
         )
-
         if qty_option == "Partial":
             sell_qty = st.number_input(
                 "Enter quantity to sell",
@@ -40,15 +38,15 @@ def fyers_sell_form(row, symbol, qty, unique_id):
         else:
             sell_qty = int(qty)
 
-        order_type_tuple = st.radio(
+        # 2. Order Type radio, price input if Limit
+        order_type = st.radio(
             "Order Type",
-            [("Market", 2), ("Limit", 1)],
+            ["Market", "Limit"],
             horizontal=True,
             key=f"ordertype_{unique_id}"
         )
-        order_type = order_type_tuple[1]
 
-        if order_type == 1:  # Limit
+        if order_type == "Limit":
             default_price = float(row.get("ltp") or row.get("avg_price") or row.get("buy_price") or 0.0)
             limit_price = st.number_input(
                 "Limit Price (₹)",
@@ -56,8 +54,10 @@ def fyers_sell_form(row, symbol, qty, unique_id):
                 value=round(default_price, 2),
                 key=f"price_{unique_id}"
             )
+            fyers_order_type = 1  # 1 for Limit
         else:
             limit_price = 0.0
+            fyers_order_type = 2  # 2 for Market
 
         validity = st.selectbox(
             "Order Validity",
@@ -84,26 +84,22 @@ def fyers_sell_form(row, symbol, qty, unique_id):
         )
         order_tag = get_alphanumeric(order_tag_raw, default=f"Sell{symbol.replace('-','').replace(':','')}")
 
-        # 🟢 Place Sell Order - nothing happens until user clicks this!
+        # EXPLICIT: Order kabhi nahi jata jab tak user button nahi dabata!
         submitted = st.form_submit_button("🟢 Place Sell Order")
         if submitted:
             order_data = {
                 "symbol": symbol,
                 "qty": int(sell_qty),
-                "type": order_type,
+                "type": fyers_order_type,  # 1=Limit, 2=Market
                 "side": -1,
                 "productType": "CNC",
-                "limitPrice": float(limit_price) if order_type == 1 else 0,
+                "limitPrice": float(limit_price) if fyers_order_type == 1 else 0,
                 "stopPrice": 0,
                 "validity": validity,
                 "disclosedQty": int(disclosed_qty),
                 "offlineOrder": offline_order,
                 "orderTag": order_tag,
             }
-            if order_type == 2:
-                order_data["limitPrice"] = 0
-                order_data["stopPrice"] = 0
-
             st.write("Order Data Being Sent:", order_data)
             try:
                 st.write("Placing order...")
