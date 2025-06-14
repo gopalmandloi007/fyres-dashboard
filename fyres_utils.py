@@ -2,6 +2,11 @@ from fyers_apiv3 import fyersModel
 import streamlit as st
 import requests
 
+import streamlit as st
+
+def debug_secrets():
+    st.write(st.secrets)
+
 # Cached Fyers object
 @st.cache_resource
 def get_fyers():
