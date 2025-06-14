@@ -1,98 +1,113 @@
 import streamlit as st
-import re
 from fyres_utils import fetch_holdings, place_single_order
+import re
 
 def get_alphanumeric(text, default="tag1"):
     cleaned = re.sub(r'[^A-Za-z0-9]', '', text)
     return cleaned if cleaned else default
 
-def sell_form(stock, idx):
-    unique_id = f"{stock['symbol']}_{idx}"
-    with st.form(f"sell_form_{unique_id}"):
-        symbol = st.text_input("Symbol", stock["symbol"], key=f"symbol_{unique_id}")
-        qty = st.number_input(
-            "Qty", min_value=1, max_value=int(stock["quantity"]), value=int(stock["quantity"]), key=f"qty_{unique_id}"
+def squareoff_form(item, qty, symbol, idx):
+    unique_id = f"{symbol}_{idx}"
+    with st.form(f"squareoff_form_{unique_id}"):
+        qty_option = st.radio(
+            "Quantity to Square Off",
+            ["Full", "Partial"],
+            horizontal=True,
+            key=f"qtyopt_{unique_id}"
         )
-        order_type_tuple = st.selectbox(
-            "Order Type", [("Market", 2), ("Limit", 1)], format_func=lambda x: x[0], key=f"ordertype_{unique_id}"
+        if qty_option == "Partial":
+            squareoff_qty = st.number_input(
+                "Enter quantity to square off",
+                min_value=1,
+                max_value=int(qty),
+                value=1,
+                key=f"squareoffqty_{unique_id}"
+            )
+        else:
+            squareoff_qty = int(qty)
+
+        order_type = st.radio(
+            "Order Type",
+            ["Market Order", "Limit Order"],
+            horizontal=True,
+            key=f"pricetype_{unique_id}"
         )
-        order_type = order_type_tuple[1]
-        # Side is always Sell for square off
-        side = -1
-        product_type = st.selectbox("Product Type", ["CNC", "INTRADAY", "CO", "BO"], index=0, key=f"ptype_{unique_id}")
-        limit_price = st.number_input(
-            "Limit Price", value=float(stock.get("ltp", 0.0)), min_value=0.0, key=f"lprice_{unique_id}"
-        )
-        stop_price = st.number_input("Stop Price", value=0.0, key=f"stop_{unique_id}")
-        validity = st.selectbox("Validity", ["DAY", "IOC"], key=f"validity_{unique_id}")
-        disclosed_qty = st.number_input(
-            "Disclosed Qty", min_value=0, max_value=int(qty), value=0, key=f"disclose_{unique_id}"
-        )
-        offline_order = st.checkbox("Offline Order", value=False, key=f"offline_{unique_id}")
-        order_tag_raw = st.text_input("Order Tag", value=f"sell{stock['symbol'].replace('-','').replace(':','')}", key=f"tag_{unique_id}")
-        order_tag = get_alphanumeric(order_tag_raw, default="tag1")
-        submitted = st.form_submit_button("Place Order")
+        if order_type == "Limit Order":
+            default_price = float(item.get("ltp") or item.get("avg_price") or item.get("buy_price") or 0)
+            squareoff_price = st.number_input(
+                "Limit Price (₹)", min_value=0.01, value=round(default_price, 2), key=f"price_{unique_id}"
+            )
+            fyers_order_type = 1
+        else:
+            squareoff_price = 0.0
+            fyers_order_type = 2
+
+        validity = st.selectbox("Order Validity", ["DAY", "IOC"], index=0, key=f"validity_{unique_id}")
+        remarks = st.text_input("Order Tag (optional)", key=f"remarks_{unique_id}")
+
+        disclose = st.checkbox("Disclose Partial Quantity?", key=f"disclose_{unique_id}")
+        if disclose:
+            disclosed_quantity = st.number_input(
+                "Disclosed Quantity", min_value=1, max_value=int(squareoff_qty), value=1, key=f"discloseqty_{unique_id}"
+            )
+        else:
+            disclosed_quantity = 0
+
+        submitted = st.form_submit_button("🟢 Place Sell Order")
         if submitted:
             order_data = {
                 "symbol": symbol,
-                "qty": int(qty),
-                "type": order_type,
-                "side": side,
-                "productType": product_type,
-                "limitPrice": float(limit_price) if order_type == 1 else 0,
-                "stopPrice": float(stop_price),
+                "qty": int(squareoff_qty),
+                "type": fyers_order_type,
+                "side": -1,  # Sell
+                "productType": "CNC",
+                "limitPrice": float(squareoff_price) if fyers_order_type == 1 else 0,
+                "stopPrice": 0,
                 "validity": validity,
-                "disclosedQty": int(disclosed_qty),
-                "offlineOrder": offline_order,
-                "orderTag": order_tag
+                "disclosedQty": int(disclosed_quantity),
+                "offlineOrder": False,
+                "orderTag": get_alphanumeric(remarks, default=f"Sell{symbol.replace('-','').replace(':','')}")
             }
-            if order_type == 2:  # Market
-                order_data["limitPrice"] = 0
-                order_data["stopPrice"] = 0
-            st.write("Order Review:", order_data)
-            try:
+            st.write("Order Data Being Sent:", order_data)
+            with st.spinner("Placing order..."):
                 resp = place_single_order(order_data)
-                st.write("API Response:", resp)
-                if resp.get("s") == "ok":
-                    st.success(f"Order Placed! Ref: {resp.get('id', '')}")
-                else:
-                    st.error(f"Order Failed: {resp.get('message', '')}")
-            except Exception as e:
-                st.error(f"Exception: {e}")
-            # After successful submit, close form and refresh table
-            st.session_state["show_form_idx"] = None
+            if resp.get("s") == "ok":
+                st.success(f"Order Placed! Ref: {resp.get('id', '')}")
+            else:
+                st.error(f"Order Failed: {resp.get('message', '')}")
+            st.session_state["show_sqoff"] = None
             st.rerun()
 
 def show():
-    st.header("Square Off Holdings (Fyers v3 SDK style)")
+    st.title("⚡ Fyers CNC Square Off (Definedge Style)")
+    st.markdown("---")
     resp = fetch_holdings()
     holdings = resp.get("holdings", [])
     if not holdings:
-        st.info("No holdings found.")
+        st.info("No holdings to square off.")
         return
 
     st.markdown("#### Your Holdings")
     columns = st.columns([2, 1, 1, 1, 1])
-    for i, label in enumerate(["Symbol", "Qty", "LTP", "Avg Price", "Sell"]):
+    for i, label in enumerate(["Symbol", "Qty", "LTP", "Avg Price", "Square Off"]):
         columns[i].markdown(f"**{label}**")
-    show_form_idx = st.session_state.get("show_form_idx", None)
+    show_idx = st.session_state.get("show_sqoff", None)
 
-    for idx, stock in enumerate(holdings):
-        symbol = stock.get("symbol", "")
-        qty = int(stock.get("quantity", 0))
-        ltp = stock.get("ltp", 0)
-        avg_price = stock.get("avg_price", 0)
+    for idx, h in enumerate(holdings):
+        symbol = h.get("symbol", "")
+        qty = int(h.get("quantity", 0))
+        ltp = h.get("ltp", 0)
+        avg_price = h.get("avg_price", 0)
         columns = st.columns([2, 1, 1, 1, 1])
         columns[0].write(symbol)
         columns[1].write(qty)
         columns[2].write(ltp)
         columns[3].write(avg_price)
-        if columns[4].button("Sell", key=f"sell_btn_{idx}"):
-            st.session_state["show_form_idx"] = idx
+        if columns[4].button("Square Off", key=f"sqoff_btn_{idx}"):
+            st.session_state["show_sqoff"] = idx
             st.rerun()
-        # Show the order form for selected row only
-        if show_form_idx == idx:
-            sell_form(stock, idx)
+        if show_idx == idx:
+            squareoff_form(h, qty, symbol, idx)
 
 if __name__ == "__main__":
     show()
