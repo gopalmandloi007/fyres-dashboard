@@ -1,7 +1,6 @@
 import requests
 import streamlit as st
 
-# Get API headers from Streamlit secrets
 def get_auth_headers():
     app_id = st.secrets["fyres_app_id"]
     access_token = st.secrets["fyres_access_token"]
@@ -10,9 +9,9 @@ def get_auth_headers():
         "Content-Type": "application/json"
     }
 
-# POST to Fyers
 def fyres_post(endpoint, data):
-    url = f"https://api-t1.fyers.in{endpoint}"
+    # Change base URL to production!
+    url = f"https://api.fyers.in{endpoint}"
     headers = get_auth_headers()
     try:
         resp = requests.post(url, headers=headers, json=data)
@@ -24,9 +23,8 @@ def fyres_post(endpoint, data):
         except:
             return {"s": "error", "message": str(e)}
 
-# GET from Fyers
 def fyres_get(endpoint):
-    url = f"https://api-t1.fyers.in{endpoint}"
+    url = f"https://api.fyers.in{endpoint}"
     headers = get_auth_headers()
     try:
         resp = requests.get(url, headers=headers)
@@ -38,7 +36,6 @@ def fyres_get(endpoint):
         except:
             return {"s": "error", "message": str(e)}
 
-# Fetch LTP (last traded price) for a symbol
 def fetch_ltp(symbol):
     data = fyres_get(f"/api/v3/quotes?symbols={symbol}")
     try:
