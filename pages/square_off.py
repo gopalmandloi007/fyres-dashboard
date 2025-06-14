@@ -1,6 +1,6 @@
 import streamlit as st
-from fyres_utils import fetch_holdings, place_single_order
 import re
+from fyres_utils import fetch_holdings, fetch_positions, place_single_order
 
 def get_alphanumeric(text, default="tag1"):
     cleaned = re.sub(r'[^A-Za-z0-9]', '', text)
@@ -8,7 +8,6 @@ def get_alphanumeric(text, default="tag1"):
 
 def sell_form(stock, idx):
     unique_id = f"{stock['symbol']}_{idx}"
-    st.markdown("---")
     with st.form(f"sell_form_{unique_id}"):
         symbol = st.text_input("Symbol", stock["symbol"], key=f"symbol_{unique_id}")
         qty = st.number_input(
@@ -18,7 +17,6 @@ def sell_form(stock, idx):
             "Order Type", [("Market", 2), ("Limit", 1)], format_func=lambda x: x[0], key=f"ordertype_{unique_id}"
         )
         order_type = order_type_tuple[1]
-        side = -1  # Always Sell for square off
         product_type = st.selectbox("Product Type", ["CNC", "INTRADAY", "CO", "BO"], index=0, key=f"ptype_{unique_id}")
         limit_price = st.number_input(
             "Limit Price", value=float(stock.get("ltp", 0.0)), min_value=0.0, key=f"lprice_{unique_id}"
@@ -38,9 +36,9 @@ def sell_form(stock, idx):
                 "symbol": symbol,
                 "qty": int(qty),
                 "type": order_type,
-                "side": side,
+                "side": -1,
                 "productType": product_type,
-                "limitPrice": float(limit_price),
+                "limitPrice": float(limit_price) if order_type == 1 else 0,
                 "stopPrice": float(stop_price),
                 "validity": validity,
                 "disclosedQty": int(disclosed_qty),
@@ -61,6 +59,9 @@ def sell_form(stock, idx):
                     st.error(f"Order Failed: {resp.get('message', '')}")
             except Exception as e:
                 st.error(f"Exception: {e}")
+            # Only reset after submit, so form closes and table refreshes
+            st.session_state["show_form_idx"] = None
+            st.experimental_rerun()
 
 def show():
     st.header("Square Off Holdings (Fyers v3 SDK style)")
@@ -74,7 +75,7 @@ def show():
     columns = st.columns([2, 1, 1, 1, 1])
     for i, label in enumerate(["Symbol", "Qty", "LTP", "Avg Price", "Sell"]):
         columns[i].markdown(f"**{label}**")
-    sell_id = st.session_state.get("sell_id", None)
+    show_form_idx = st.session_state.get("show_form_idx", None)
 
     for idx, stock in enumerate(holdings):
         symbol = stock.get("symbol", "")
@@ -87,9 +88,10 @@ def show():
         columns[2].write(ltp)
         columns[3].write(avg_price)
         if columns[4].button("Sell", key=f"sell_btn_{idx}"):
-            st.session_state["sell_id"] = idx
-            st.rerun()
-        if sell_id == idx:
+            st.session_state["show_form_idx"] = idx
+            st.experimental_rerun()
+        # Show the order form for the selected row only
+        if show_form_idx == idx:
             sell_form(stock, idx)
 
 if __name__ == "__main__":
