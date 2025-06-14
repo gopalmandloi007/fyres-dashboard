@@ -6,13 +6,10 @@ def get_alphanumeric(text, default="tag1"):
     cleaned = re.sub(r'[^A-Za-z0-9]', '', text)
     return cleaned if cleaned else default
 
-def squareoff_form(item, qty, symbol, idx, active_form_idx):
-    unique_id = f"squareoff_{idx}"
-    if active_form_idx != idx:
-        return  # Only show form for active row
-
+def squareoff_form(item, qty, symbol, idx):
+    unique_id = f"squareoff_{symbol}_{idx}"
     with st.form(key=f"{unique_id}_form"):
-        # 1. Full/Partial selection
+        # Full/Partial selection
         qty_option = st.radio(
             "Quantity to Square Off",
             ["Full", "Partial"],
@@ -30,7 +27,7 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
         else:
             squareoff_qty = int(qty)
 
-        # 2. Market/Limit selection
+        # Market/Limit selection
         order_type = st.radio(
             "Order Type",
             ["Market Order", "Limit Order"],
@@ -80,7 +77,6 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
                 st.success(f"Order Placed! Ref: {resp.get('id', '')}")
             else:
                 st.error(f"Order Failed: {resp.get('message', '')}")
-            # Reset form index after placing order
             st.session_state["active_sqoff_idx"] = None
             st.rerun()
 
@@ -94,27 +90,25 @@ def show():
         return
 
     st.markdown("#### Your Holdings")
-    columns = st.columns([2, 1, 1, 1, 1])
-    for i, label in enumerate(["Symbol", "Qty", "LTP", "Avg Price", "Square Off"]):
-        columns[i].markdown(f"**{label}**")
-
-    # Per-row form index logic
-    active_form_idx = st.session_state.get("active_sqoff_idx", None)
+    show_idx = st.session_state.get("active_sqoff_idx", None)
 
     for idx, h in enumerate(holdings):
         symbol = h.get("symbol", "")
         qty = int(h.get("quantity", 0))
         ltp = h.get("ltp", 0)
         avg_price = h.get("avg_price", 0)
-        columns = st.columns([2, 1, 1, 1, 1])
-        columns[0].write(symbol)
-        columns[1].write(qty)
-        columns[2].write(ltp)
-        columns[3].write(avg_price)
-        if columns[4].button("Square Off", key=f"sqoff_btn_{idx}"):
+        # Show table row
+        cols = st.columns([2, 1, 1, 1, 1])
+        cols[0].write(symbol)
+        cols[1].write(qty)
+        cols[2].write(ltp)
+        cols[3].write(avg_price)
+        if cols[4].button("Square Off", key=f"sqoff_btn_{symbol}_{idx}"):
             st.session_state["active_sqoff_idx"] = idx
             st.rerun()
-        squareoff_form(h, qty, symbol, idx, active_form_idx)
+        # Only show form for selected row, with correct data
+        if show_idx == idx:
+            squareoff_form(h, qty, symbol, idx)
 
 if __name__ == "__main__":
     show()
