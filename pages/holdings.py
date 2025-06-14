@@ -8,15 +8,28 @@ from fyres_utils import fetch_holdings
 
 def show():
     st.header("Fyers Holdings")
+
     resp = fetch_holdings()
     if resp.get("s") == "ok":
-        df = pd.DataFrame(resp.get("holdings", []))
-        if not df.empty:
-            st.dataframe(df)
-            total_pl = resp.get("overall_pl", None) or resp.get("total_pl", None)
-            pnl_perc = resp.get("overall_pl_perc", None) or resp.get("pnl_perc", None)
+        holdings = resp.get("holdings", [])
+        overall = resp.get("overall", {})
+
+        if holdings:
+            df = pd.DataFrame(holdings)
+            # Rearranging columns for better display (optional)
+            display_cols = [
+                "symbol", "holdingType", "quantity", "remainingQuantity", "qty_t1",
+                "costPrice", "marketVal", "ltp", "pl", "collateralQuantity", "remainingPledgeQuantity", "isin"
+            ]
+            display_cols = [col for col in display_cols if col in df.columns]
+            st.dataframe(df[display_cols])
+
             st.markdown(
-                f"**Total P&L:** {total_pl if total_pl is not None else 0} | **P&L %:** {pnl_perc if pnl_perc is not None else 0}%"
+                f"""**Total Holdings:** {overall.get('count_total',0)}  
+**Invested Amount:** ₹{overall.get('total_investment',0):,.2f}  
+**Current Value:** ₹{overall.get('total_current_value',0):,.2f}  
+**Total P&L:** ₹{overall.get('total_pl',0):,.2f}  
+**P&L %:** {overall.get('pnl_perc',0):.2f}%"""
             )
         else:
             st.info("No holdings found.")
