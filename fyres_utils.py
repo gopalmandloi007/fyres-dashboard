@@ -54,3 +54,25 @@ def cancel_gtt_order(order_id):
 def fetch_gtt_orders():
     fyers = get_fyers()
     return fyers.gtt_orderbook()
+
+def fyres_get(endpoint, params):
+    fyers = get_fyers()
+    # 'endpoint' can be used to select the API method; here, we just handle "/data/history" as you used in chart.py
+    if endpoint == "/data/history":
+        return fyers.history(params)
+    # Add more endpoints if needed
+    return {"s": "error", "message": f"Unknown endpoint {endpoint}"}
+
+def fyres_patch(endpoint, data):
+    fyers = get_fyers()
+    # For order modification, as in modify_cancel_order.py
+    if endpoint == "/api/v3/orders/sync":
+        return fyers.modify_order(data=data)
+    return {"s": "error", "message": f"Unknown endpoint {endpoint}"}
+
+def fyres_delete(endpoint, data):
+    fyers = get_fyers()
+    # For order cancel, as in modify_cancel_order.py
+    if endpoint == "/api/v3/orders/sync":
+        return fyers.cancel_order(data=data)
+    return {"s": "error", "message": f"Unknown endpoint {endpoint}"}
