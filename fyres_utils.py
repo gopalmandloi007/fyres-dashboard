@@ -1,20 +1,14 @@
 from fyers_apiv3 import fyersModel
 import streamlit as st
-import requests
 
-import streamlit as st
-
-def debug_secrets():
-    st.write(st.secrets)
-
-# Cached Fyers object
 @st.cache_resource
 def get_fyers():
     client_id = st.secrets["fyres_app_id"]
     access_token = st.secrets["fyres_access_token"]
     return fyersModel.FyersModel(client_id=client_id, token=access_token, is_async=False, log_path="")
 
-# --- SDK Wrappers ---
+def debug_secrets():
+    st.write("Secrets loaded:", dict(st.secrets))
 
 def place_single_order(order_data):
     fyers = get_fyers()
@@ -38,7 +32,7 @@ def fetch_positions():
 
 def fetch_trades():
     fyers = get_fyers()
-    return fyers.tradebook()    
+    return fyers.tradebook()
 
 def place_gtt_order(order_data):
     fyers = get_fyers()
@@ -60,26 +54,3 @@ def cancel_gtt_order(order_id):
 def fetch_gtt_orders():
     fyers = get_fyers()
     return fyers.gtt_orderbook()
-
-# --- REST API helpers (for endpoints not covered by SDK, e.g. chart/history) ---
-
-def get_fyers_access_token():
-    return st.secrets["fyres_access_token"]
-
-def fyres_get(endpoint, params=None):
-    url = "https://api-t1.fyers.in" + endpoint
-    headers = {"Authorization": get_fyers_access_token()}
-    resp = requests.get(url, headers=headers, params=params)
-    return resp.json()
-
-def fyres_patch(endpoint, data):
-    url = "https://api-t1.fyers.in" + endpoint
-    headers = {"Authorization": get_fyers_access_token()}
-    resp = requests.patch(url, headers=headers, json=data)
-    return resp.json()
-
-def fyres_delete(endpoint, data):
-    url = "https://api-t1.fyers.in" + endpoint
-    headers = {"Authorization": get_fyers_access_token()}
-    resp = requests.delete(url, headers=headers, json=data)
-    return resp.json()
