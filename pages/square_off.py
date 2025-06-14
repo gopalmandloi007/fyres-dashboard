@@ -49,8 +49,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
         )
         order_type = order_type_tuple[1]
 
-        # Only show limit price input for Limit order
-        if order_type == 1:
+        if order_type == 1:  # Limit order
             default_price = float(row.get("ltp") or row.get("avg_price") or row.get("buy_price") or 0.0)
             limit_price = st.number_input(
                 "Limit Price (₹)",
