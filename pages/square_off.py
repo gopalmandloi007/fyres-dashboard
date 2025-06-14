@@ -6,12 +6,18 @@ sys.path.append(
 
 import streamlit as st
 import pandas as pd
+import re
 
 from fyres_utils import (
     fetch_positions, squareoff_positions,
     fetch_holdings, fetch_orders,
     place_single_order
 )
+
+def get_alphanumeric(text, default="OrderTag1"):
+    """Return only alphanumeric characters for orderTag (Fyers requirement)."""
+    cleaned = re.sub(r'[^A-Za-z0-9]', '', text)
+    return cleaned if cleaned else default
 
 def fyers_sell_form(row, symbol, qty, unique_id):
     st.markdown("---")
@@ -24,6 +30,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
             key=f"qtyopt_{unique_id}"
         )
 
+        # Show qty input if Partial, else fill full qty
         if qty_option == "Partial":
             sell_qty = st.number_input(
                 "Enter quantity to sell",
@@ -43,6 +50,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
         )
         order_type = order_type_tuple[1]
 
+        # Show limit price only if order_type is Limit
         limit_price = 0.0
         if order_type == 1:
             default_price = float(row.get("ltp") or row.get("avg_price") or row.get("buy_price") or 0.0)
@@ -71,11 +79,12 @@ def fyers_sell_form(row, symbol, qty, unique_id):
             value=False,
             key=f"offline_{unique_id}"
         )
-        order_tag = st.text_input(
-            "Order Tag (optional)",
-            value=f"sell_{symbol}",
+        order_tag_raw = st.text_input(
+            "Order Tag (optional, only letters/numbers allowed!)",
+            value=f"sell{symbol.replace('-','').replace(':','')}",
             key=f"tag_{unique_id}"
         )
+        order_tag = get_alphanumeric(order_tag_raw, default=f"Sell{symbol.replace('-','').replace(':','')}")
 
         submitted = st.form_submit_button("🟢 Place Sell Order")
         if submitted:
@@ -90,7 +99,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
                 "validity": validity,
                 "disclosedQty": int(disclosed_qty),
                 "offlineOrder": offline_order,
-                "orderTag": order_tag.strip() if order_tag.strip() else f"tag_{symbol}",
+                "orderTag": order_tag,
             }
             if order_type == 2:  # Market
                 order_data["limitPrice"] = 0
