@@ -28,7 +28,7 @@ def fetch_holdings():
 # Example: Fetch orders
 def fetch_orders():
     fyers = get_fyers()
-    return fyers.orders()
+    return fyers.orderbook()
 
 # Example: Fetch positions
 def fetch_positions():
