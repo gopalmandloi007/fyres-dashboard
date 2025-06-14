@@ -4,7 +4,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import streamlit as st
 import pandas as pd
-from fyres_utils import fetch_positions, squareoff_positions, fetch_holdings, sell_holding
+from fyres_utils import fetch_positions, squareoff_positions, fetch_holdings, sell_holding, fetch_orders
+import time
 
 def show():
     st.header("Square Off: Positions & Holdings")
@@ -56,7 +57,11 @@ def show():
                             limit_price = st.number_input(f"Limit Price for {row['symbol']}", value=float(row.get("ltp", 0)), key=f"lp_{row['symbol']}")
                         if st.button(f"Sell {qty_to_sell} of {row['symbol']}", key=f"sell_{row['symbol']}"):
                             resp2 = sell_holding(row['symbol'], qty_to_sell, order_type[1], limit_price)
-                            st.write("API Response:", resp2)
+                            st.write("Order Sell Response:", resp2)
+                            # Wait for order to reflect
+                            time.sleep(2)
+                            orders = fetch_orders()
+                            st.write("Order Book Snapshot:", orders)
                             if resp2.get("s") == "ok":
                                 st.success(f"Sell Order Placed for {row['symbol']}")
                             else:
