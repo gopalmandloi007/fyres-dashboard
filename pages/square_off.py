@@ -1,12 +1,12 @@
 import sys
 import os
+import re
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 )
 
 import streamlit as st
 import pandas as pd
-import re
 
 from fyres_utils import (
     fetch_positions, squareoff_positions,
@@ -15,14 +15,13 @@ from fyres_utils import (
 )
 
 def get_alphanumeric(text, default="OrderTag1"):
-    """Return only alphanumeric characters for orderTag (Fyers requirement)."""
     cleaned = re.sub(r'[^A-Za-z0-9]', '', text)
     return cleaned if cleaned else default
 
 def fyers_sell_form(row, symbol, qty, unique_id):
     st.markdown("---")
-    form = st.form(f"sell_form_{unique_id}")
-    with form:
+    with st.form(f"sell_form_{unique_id}"):
+        # Step 1: Full/Partial
         qty_option = st.radio(
             "Quantity to Sell",
             ["Full", "Partial"],
@@ -30,7 +29,6 @@ def fyers_sell_form(row, symbol, qty, unique_id):
             key=f"qtyopt_{unique_id}"
         )
 
-        # Show qty input if Partial, else fill full qty
         if qty_option == "Partial":
             sell_qty = st.number_input(
                 "Enter quantity to sell",
@@ -42,6 +40,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
         else:
             sell_qty = int(qty)
 
+        # Step 2: Market/Limit
         order_type_tuple = st.radio(
             "Order Type",
             [("Market", 2), ("Limit", 1)],
@@ -50,7 +49,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
         )
         order_type = order_type_tuple[1]
 
-        # Show limit price only if order_type is Limit
+        # Step 3: Limit Price (only for Limit)
         limit_price = 0.0
         if order_type == 1:
             default_price = float(row.get("ltp") or row.get("avg_price") or row.get("buy_price") or 0.0)
@@ -61,6 +60,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
                 key=f"price_{unique_id}"
             )
 
+        # Step 4: Validity etc.
         validity = st.selectbox(
             "Order Validity",
             ["DAY", "IOC"],
@@ -92,7 +92,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
                 "symbol": symbol,
                 "qty": int(sell_qty),
                 "type": order_type,
-                "side": -1,  # SELL
+                "side": -1,
                 "productType": "CNC",
                 "limitPrice": float(limit_price) if order_type == 1 else 0,
                 "stopPrice": 0,
@@ -101,7 +101,7 @@ def fyers_sell_form(row, symbol, qty, unique_id):
                 "offlineOrder": offline_order,
                 "orderTag": order_tag,
             }
-            if order_type == 2:  # Market
+            if order_type == 2:
                 order_data["limitPrice"] = 0
                 order_data["stopPrice"] = 0
 
