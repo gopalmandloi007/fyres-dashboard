@@ -3,16 +3,17 @@ import re
 from fyres_utils import fetch_holdings, place_single_order
 
 def get_alphanumeric(text, default="tag1"):
+    # Remove non-alphanumeric characters, fallback to default if empty
     cleaned = re.sub(r'[^A-Za-z0-9]', '', text)
     return cleaned if cleaned else default
 
 def squareoff_form(item, qty, symbol, idx, active_form_idx):
     unique_id = f"squareoff_{idx}"
     if active_form_idx != idx:
-        return  # Only show form for active row
+        return  # Show form only for active row
 
-    with st.form(key=f"{unique_id}_form"):
-        # 1. Full/Partial selection
+    with st.form(key=f"{unique_id}_form", clear_on_submit=True):
+        # Full/Partial selection
         qty_option = st.radio(
             "Quantity to Square Off",
             ["Full", "Partial"],
@@ -30,7 +31,7 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
         else:
             squareoff_qty = int(qty)
 
-        # 2. Market/Limit selection
+        # Market/Limit selection
         order_type = st.radio(
             "Order Type",
             ["Market Order", "Limit Order"],
@@ -38,28 +39,49 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
             key=f"{unique_id}_ordertype"
         )
         if order_type == "Limit Order":
-            default_price = float(item.get("ltp") or item.get("avg_price") or item.get("buy_price") or 0)
+            # Improved price fallback logic
+            default_price = float(
+                item.get("ltp") or item.get("avg_price") or item.get("buy_price") or 0
+            )
             squareoff_price = st.number_input(
-                "Limit Price (₹)", min_value=0.01, value=round(default_price, 2), key=f"{unique_id}_price"
+                "Limit Price (₹)",
+                min_value=0.01,
+                value=round(default_price, 2) if default_price > 0 else 0.01,
+                key=f"{unique_id}_price"
             )
             fyers_order_type = 1
         else:
             squareoff_price = 0.0
             fyers_order_type = 2
 
-        validity = st.selectbox("Order Validity", ["DAY", "IOC"], index=0, key=f"{unique_id}_validity")
-        remarks = st.text_input("Order Tag (optional)", key=f"{unique_id}_remarks")
+        validity = st.selectbox(
+            "Order Validity", ["DAY", "IOC"], index=0, key=f"{unique_id}_validity"
+        )
+        remarks = st.text_input(
+            "Order Tag (optional)",
+            max_chars=15,
+            key=f"{unique_id}_remarks"
+        )
 
-        disclose = st.checkbox("Disclose Partial Quantity?", key=f"{unique_id}_disclose")
+        disclose = st.checkbox(
+            "Disclose Partial Quantity?", key=f"{unique_id}_disclose"
+        )
         if disclose:
             disclosed_quantity = st.number_input(
-                "Disclosed Quantity", min_value=1, max_value=int(squareoff_qty), value=1, key=f"{unique_id}_discloseqty"
+                "Disclosed Quantity",
+                min_value=1,
+                max_value=int(squareoff_qty),
+                value=int(squareoff_qty),
+                key=f"{unique_id}_discloseqty"
             )
         else:
             disclosed_quantity = 0
 
         submitted = st.form_submit_button("🟢 Place Sell Order")
         if submitted:
+            if squareoff_qty > qty:
+                st.error("Cannot square off more than available quantity!")
+                return
             order_data = {
                 "symbol": symbol,
                 "qty": int(squareoff_qty),
@@ -73,7 +95,6 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
                 "offlineOrder": False,
                 "orderTag": get_alphanumeric(remarks, default=f"Sell{symbol.replace('-','').replace(':','')}")
             }
-            st.write("Order Data Being Sent:", order_data)
             with st.spinner("Placing order..."):
                 resp = place_single_order(order_data)
             if resp.get("s") == "ok":
@@ -82,7 +103,7 @@ def squareoff_form(item, qty, symbol, idx, active_form_idx):
                 st.error(f"Order Failed: {resp.get('message', '')}")
             # Reset form index after placing order
             st.session_state["active_sqoff_idx"] = None
-            st.rerun()
+            st.experimental_rerun()
 
 def show():
     st.title("⚡ Fyers CNC Square Off (Definedge Style)")
@@ -98,7 +119,6 @@ def show():
     for i, label in enumerate(["Symbol", "Qty", "LTP", "Avg Price", "Square Off"]):
         columns[i].markdown(f"**{label}**")
 
-    # Per-row form index logic
     active_form_idx = st.session_state.get("active_sqoff_idx", None)
 
     for idx, h in enumerate(holdings):
@@ -113,7 +133,7 @@ def show():
         columns[3].write(avg_price)
         if columns[4].button("Square Off", key=f"sqoff_btn_{idx}"):
             st.session_state["active_sqoff_idx"] = idx
-            st.rerun()
+            st.experimental_rerun()
         squareoff_form(h, qty, symbol, idx, active_form_idx)
 
 if __name__ == "__main__":
